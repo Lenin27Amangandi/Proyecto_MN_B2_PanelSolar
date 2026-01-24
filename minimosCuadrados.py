@@ -47,6 +47,7 @@ def least_squares_roll_pitch(az, el):
 
     return phi, psi
 
+
 # ===============================
 # MODELO SOLAR SIMPLIFICADO
 # ===============================
@@ -55,6 +56,7 @@ def solar_position(date):
     az = np.deg2rad(15 * (hour - 12) + 180)
     el = np.deg2rad(max(0, 60 - abs(hour - 12) * 7))
     return az, el
+
 
 # ===============================
 # SIMULACIÓN COMPLETA
@@ -78,6 +80,7 @@ def run_simulation(date, duration_hours):
 
     return az_hist, el_hist, phi_hist, psi_hist
 
+
 # ===============================
 # GRÁFICAS TEMPORALES
 # ===============================
@@ -96,16 +99,19 @@ def plot_time_graphs(az, el, phi, psi):
     plt.grid()
     plt.show()
 
+
 # ===============================
 # SIMULACIÓN 3D INTERACTIVA
 # ===============================
 def interactive_simulation_manual():
     import numpy as np
     import matplotlib.pyplot as plt
-    from matplotlib.widgets import Slider
+    from matplotlib.widgets import Slider, Button
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
     fig = plt.figure(figsize=(12,6))
+    fig.subplots_adjust(wspace=0.45)
+    fig.subplots_adjust(top=0.82, bottom=0.25)
 
     # --- Gráfico 3D ---
     ax3d = fig.add_subplot(121, projection='3d')
@@ -138,6 +144,10 @@ def interactive_simulation_manual():
 
     slider_az = Slider(ax_az, "Azimut (°)", 0, 360, valinit=150)
     slider_el = Slider(ax_el, "Elevación (°)", 0, 90, valinit=25)
+
+    # --- Botón volver a posición inicial ---
+    ax_reset = plt.axes([0.01, 0.05, 0.14, 0.04])
+    btn_reset = Button(ax_reset, "Volver a posición inicial")
 
     def update(val):
         nonlocal sun_vec, panel_surface, sun_point_3d
@@ -202,17 +212,22 @@ def interactive_simulation_manual():
         )
 
         # --- Gráfico 2D ---
-        sun_point_2d.set_data(slider_az.val, slider_el.val)
+        sun_point_2d.set_data([slider_az.val], [slider_el.val])
         ax2d.set_title(f"Coloca el Sol — Az: {slider_az.val:.1f}°, El: {slider_el.val:.1f}°")
 
         fig.canvas.draw_idle()
 
+    # --- Función del botón ---
+    def reset_position(event):
+        slider_az.set_val(150)
+        slider_el.set_val(25)
+
     slider_az.on_changed(update)
     slider_el.on_changed(update)
+    btn_reset.on_clicked(reset_position)
 
     update(None)
     plt.show()
-
 
 
 # ===============================
@@ -261,6 +276,7 @@ def create_gif(az, el, phi, psi):
     ani.save("simulacion_seguidor_solar.gif", writer="pillow", fps=10)
     plt.show()
 
+
 # ===============================
 # INTERFAZ GRÁFICA (GUI)
 # ===============================
@@ -290,14 +306,17 @@ def launch_gui():
         plot_time_graphs(az, el, phi, psi)
         create_gif(az, el, phi, psi)
 
-    ttk.Button(root, text="Ejecutar Simulación", command=run).grid(row=2, column=0, columnspan=2, pady=10)
-    ttk.Button(root, text="Simulación Manual (Interactiva)", command=interactive_simulation_manual).grid(row=3, column=0, columnspan=2, pady=10)
+    ttk.Button(root, text="Ejecutar Simulación", command=run)\
+        .grid(row=2, column=0, columnspan=2, pady=10)
+
+    ttk.Button(root, text="Simulación Manual (Interactiva)", command=interactive_simulation_manual)\
+        .grid(row=3, column=0, columnspan=2, pady=10)
+
     root.mainloop()
+
 
 # ===============================
 # EJECUCIÓN
 # ===============================
 if __name__ == "__main__":
     launch_gui()
-
-
