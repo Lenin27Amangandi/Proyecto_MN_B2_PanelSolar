@@ -93,7 +93,7 @@ for fecha in fechas:
         pitch_num, roll_num = calculo_numerico_pitch_roll(S)
         resultados.append([fecha, pitch_ana, roll_anal, pitch_num, roll_num])
 
-# CORRECCIÓN 7: Definir nombres de columnas
+
 cols = ['Fecha', 'Pitch_Analitico', 'Roll_Analitico', 'Pitch_Numerico', 'Roll_Numerico']
 df_res = pd.DataFrame(resultados, columns=cols)
 
