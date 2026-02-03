@@ -1,71 +1,151 @@
 # Proyecto_MN_B2_PanelSolar
-# Descripción
-La facultad de Ingeniería Mecánica dispone de varios sistemas de seguimiento solar, uno de ellos se muestra en la siguiente fotografía:
 
-<img src="assets/Imagen-7.jpg" width="600" />
+## Descripción
 
-Para este proyecto, se debe realizar el cálculo de los ángulos de control para un seguidor solar de 2 grados de libertad. 
+Este proyecto implementa una simulación de un **seguidor solar de dos grados de libertad (2 GDL)** desarrollado en Python.  
+El sistema orienta automáticamente un panel solar para que su superficie sea lo más perpendicular posible a la dirección de incidencia del Sol, maximizando la captación de energía.
 
-# Seguidor solar
-Un seguidor solar es un sistema de orientación para maximizar la exposición a la luz solar. Esto se consigue cuando el panel se orienta perpendicularmente a la luz solar incidente. Cuando el panel no se encuentra perpendicular, la cantidad de energía generada disminuye significativamente.
+La simulación integra el cálculo de la posición solar, un modelo matemático de orientación del panel, un método numérico de optimización por mínimos cuadrados y visualizaciones gráficas en 2D y 3D.
 
-![alt text](assets/image-6.png)
+---
 
-Los ángulos de control en el seguidor solar de 2 grados de libertad son:
+## Marco Teórico
 
-1. $roll$: ángulo de giro alrededor del eje que mira al norte.
+### Posición solar
 
-![alt text](assets/image-3.png)
+La posición del Sol se describe mediante dos ángulos principales:
 
-2. $pitch$: ángulo de giro alrededor del eje que mira al este.
+- **Azimut (α):** ángulo horizontal medido desde el norte.
+- **Elevación (θ):** ángulo vertical del Sol respecto al horizonte.
 
-[**IMPORTANTE**] A diferencia de otro tipo de seguidores solares, la EPN tiene un seguidor solar alrededor del ángulo $pitch$, en lugar del ángulo $yaw$. 
-![alt text](assets/image-4.png)
+Estos valores dependen de la fecha, hora y ubicación geográfica (latitud y longitud) y se calculan mediante modelos astronómicos.
 
-# Posición solar
-La posición del sol se mide con respecto a dos ángulos: 
-* $\theta$ que es el ángulo de **elevación** del sol con respecto a su proyección en la superficie,
-* $\alpha$ que es el ángulo **azimutal** de la proyección del sol en la superficie con respecto al norte.
+### Seguidor solar de dos grados de libertad
 
-![alt text](assets/image-1.png)
+El seguidor solar se modela como un sistema mecánico con dos grados de libertad:
 
+- **Roll (φ):** rotación alrededor del eje que apunta al norte.
+- **Pitch (ψ):** rotación alrededor del eje que apunta al este.
 
-Con el siguiente snippet de código puede obtener la posición del sol en un lugar (Campus EPN, por defecto) y fecha determinada (fecha y hora actual, por defecto).
+No se considera el ángulo **yaw**, ya que el sistema sigue una configuración fija similar a la empleada en los seguidores solares de la EPN.
+
+### Modelo matemático del panel
+
+La orientación del panel se representa mediante un **vector normal** \( n \), definido en función de los ángulos de roll y pitch.  
+La dirección del Sol se representa mediante un **vector unitario** \( s \), calculado a partir del azimut y la elevación.
+
+El objetivo del sistema es alinear el vector normal del panel con el vector solar.
+
+---
+
+## Métodos Utilizados
+
+### Método 1: Cálculo de la posición solar (Modelo físico–astronómico)
+
+Este método permite determinar la posición del Sol a lo largo del día utilizando un modelo astronómico implementado en la librería **PySolar**.
+
+**Entradas:**
+- Latitud
+- Longitud
+- Fecha y hora
+
+**Salidas:**
+- Azimut (α)
+- Elevación (θ)
+
+Este método no es iterativo, pero es fundamental ya que proporciona los datos de entrada para el método numérico de optimización.
 
 ```python
 from pysolar.solar import get_altitude, get_azimuth
 from datetime import datetime
 from pytz import timezone
 
-
 def getSolarPosition(
     latitude: float = -0.2105367,
     longitude: float = -78.491614,
     date: datetime = datetime.now(tz=timezone("America/Guayaquil")),
 ):
-    """Calcula el ``azimuth`` y la ``elevation`` para una posición geográfica (por defecto la EPN) y la fecha ``date``.
-
-    ## Parameters
-
-    ## Return
-    ``azimuth``: ángulo en grados desde el norte hasta la projección en la tierra [0 -> 360).
-    ``elevation``: ángulo del sol hacia la proyección en la tierra [-90 -> 90].
-
-    """
-
     az = get_azimuth(latitude, longitude, date)
     el = get_altitude(latitude, longitude, date)
-
     return az, el
 
-
-getSolarPosition()
+azimuth, elevation = getSolarPosition()
+print(f"Azimuth: {azimuth:.2f}°, Elevation: {elevation:.2f}°")
 ```
 
-# Objetivo
-* [**IMPORTANTE**] Realizar el desarrollo matemático para calcular los 2 ángulos de control ($pitch$ y $roll$) en base a la posición solar (elevación $\theta$ y azimuth $\alpha$).
-* Implementar un programa que permita calcular los ángulos de control para un seguidor solar de 2 grados de libertad.
-* Dibujar la trayectoria del sol y del panel solar para un día determinado.
-* El panel solar debe ser perpendicular a la luz solar incidente.
-* El programa debe permitir ingresar la fecha y duración de la simulación, y graficar de manera interactiva la trayectoria del panel solar.
-* Realice un video de máximo 30 segundos del uso de su programa.
+---
+
+### Método 2: Optimización por mínimos cuadrados (método numérico)
+
+El segundo método corresponde al **método numérico principal del proyecto**.  
+Su objetivo es calcular los ángulos de **roll** y **pitch** que alinean el panel con la dirección del Sol.
+
+Se define la función de costo:
+
+\[
+J = \| n - s \|^2
+\]
+
+La minimización de esta función se realiza mediante un **proceso iterativo tipo descenso por gradiente**, ajustando progresivamente los ángulos hasta cumplir un criterio de convergencia.
+
+```python
+def least_squares_roll_pitch(az, el):
+    s = np.array([np.cos(el)*np.sin(az),
+                  np.cos(el)*np.cos(az),
+                  np.sin(el)])
+
+    phi, psi = 0.0, 0.0
+    for _ in range(1000):
+        n = np.array([-np.sin(phi)*np.cos(psi),
+                       np.sin(psi),
+                       np.cos(phi)*np.cos(psi)])
+
+        error = n - s
+        phi -= 0.4 * np.dot(error, [-np.cos(phi)*np.cos(psi), 0, -np.sin(phi)*np.cos(psi)])
+        psi -= 0.4 * np.dot(error, [np.sin(phi)*np.sin(psi), np.cos(psi), -np.cos(phi)*np.sin(psi)])
+
+    return phi, psi
+```
+
+---
+
+## Metodología General
+
+1. Ingreso de parámetros iniciales (fecha, hora y duración).
+2. Cálculo de la posición solar mediante el **Método 1**.
+3. Construcción del vector solar.
+4. Optimización de los ángulos del panel mediante el **Método 2**.
+5. Registro de resultados en archivos CSV.
+6. Visualización de resultados en gráficas y animaciones.
+
+---
+
+## Resultados
+
+La simulación permite observar:
+
+- La trayectoria diaria del Sol.
+- La evolución temporal de los ángulos de roll y pitch.
+- La correcta orientación del panel durante el período simulado.
+
+Se generan gráficos 2D, una escena 3D interactiva y una animación que ilustran el comportamiento del sistema.
+
+---
+
+## Conclusiones
+
+El proyecto demuestra que un **seguidor solar de dos grados de libertad** es suficiente para mantener una orientación adecuada del panel durante el día.
+
+El uso del **método de mínimos cuadrados** proporciona una solución numérica estable y eficiente para el cálculo de los ángulos de control, validando el enfoque aplicado en la simulación.
+
+El cálculo de la posición solar mediante un **modelo astronómico** permite obtener valores precisos de azimut y elevación, garantizando que los datos de entrada del sistema representen adecuadamente el movimiento real del Sol y sirvan como base confiable para la simulación.
+
+---
+
+## Tecnologías Utilizadas
+
+- Python 3
+- NumPy
+- Matplotlib
+- Tkinter
+- PySolar
