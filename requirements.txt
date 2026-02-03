@@ -1,0 +1,9 @@
+numpy
+matplotlib
+pysolar
+pytz
+scipy
+plotly
+pandas
+ipython
+pillow
